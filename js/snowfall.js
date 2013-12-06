@@ -26,7 +26,36 @@
 
 		//Configuration
 		defaults:{
-			amount:125,		//Amount of particles
+			//Amount of particles
+			amount: 100,
+
+			//Positioning
+			horizontalOffsetLeft:-100,				//Horizontal offset from the left (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
+			horizontalOffsetRight:-200,				//Horizontal offset from the right (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
+			verticalOffsetTop:-100,					//Vertical offset from the top (can be positive or negative) in px, useful for the start position of the snow above the canvas
+
+			//Vertical speed configuration
+			verticalSpeed: 23,						//Somewhere between 0.5 and 10 works best
+			randomVerticalSpeed: true,				//True or false
+			minimumRandomVerticalSpeed: 3,			//Minimum shouldn't be lower than zero and probably heigher than 0.5
+			maxiumumRandomVerticalSpeed: 6,			//Maxiumum shouln't be lower than zero and probably lower than 10
+
+			//Horizontal speed configuration
+			horizontalSpeed:10,						//Somewhere between -10 and 10 works best, negative values for left moving particles
+			randomHorizontalSpeed: true,			//True or false
+			minimumRandomHorizontalSpeed: -4,		//Minimum shouldn't be lower than zero and probably heigher than 0.5
+			maxiumumRandomHorizontalSpeed: 4,		//Maxiumum shouln't be lower than zero and probably lower than 10
+
+			//Graphics
+			graphicMode: true,						//True or false, draws a circle when false
+			radius: 4,								//In case graphicMode false: radius for drawn circles
+			randomRadius: true,						//In case graphicMode false: toggle random radius for drawn circles
+			minimumRandomRadius:10,					//In case graphicMode false: minimum random radius
+			maxiumRandomRadius:20,					//In case graphicMode false: maximum random radius
+			graphics: [
+				'images/flake2.png',
+				'images/flake.png'
+			]										//In case graphicMode true: array of image urls to use
 		},
 
 		//Initialisation
@@ -35,18 +64,49 @@
 			this.config = $.extend({}, this.defaults, this.options, this.metadata);
 
 			//Variables
-			this.angle = 0;
+			this.x = 0;
 
 			//Get the context from our canvas element
 			this.ctx = this.element.getContext('2d');
 
-			//Call necessary functions
-			this.setCanvas();
-			this.createElements();
+			//Check if we need to load images (we are in graphic mode)
+			if(this.config.graphicMode){
 
-			//Bind events
-			this.bindResize();
-			this.bindRequestKeyframes();
+				//Variables we need
+				var loadedImages = 0, _self = this;
+				this.graphics = [];
+
+				//Loop through the urls in the config
+				$.each(this.config.graphics,function(i,el){
+					//Push image and set source
+					_self.graphics.push(new Image());
+					_self.graphics[i].src = el;
+
+					//On load, check if we loaded all images
+					_self.graphics[i].onload = function(){
+						loadedImages++;
+
+						//Check all images loaded
+						if(loadedImages==_self.config.graphics.length){
+							//Call necessary functions
+							_self.setCanvas();
+							_self.createElements();
+
+							//Bind events
+							_self.bindResize();
+							_self.bindRequestKeyframes();
+						}
+					};
+				});
+			}else{
+				//Call necessary functions
+				this.setCanvas();
+				this.createElements();
+
+				//Bind events
+				this.bindResize();
+				this.bindRequestKeyframes();
+			}
 
 			return this;
 		},
@@ -66,13 +126,65 @@
 			for(var i = 0; i < this.config.amount; i++)
 			{
 				//Add particle to the array
-				this.particles.push({
-					x: Math.round(Math.random()*this.windowWidth), //x-coordinate
-					y: Math.round(Math.random()*this.windowHeight), //y-coordinate
-					r: Math.round(Math.random()*4+1), //radius
-					d: Math.round(Math.random()*this.config.amount), //density
-					s: Math.random()
-				})
+				this.particles.push(this.createParticle());
+			}
+		},
+
+		//Function to create a particle
+		createParticle: function(config){
+			var particle, verticalSpeed, horizontalSpeed, radius,graphic;
+			
+			//Determine horizontal speed
+			if(this.config.randomHorizontalSpeed){
+				horizontalSpeed = this.randomValueBetween(this.config.minimumRandomHorizontalSpeed,this.config.maxiumumRandomHorizontalSpeed);
+			}else{
+				horizontalSpeed = this.config.horizontalSpeed;
+			}
+
+			//Determine vertical speed
+			if(this.config.randomVerticalSpeed){
+				verticalSpeed = this.randomValueBetween(this.config.minimumRandomVerticalSpeed,this.config.maxiumumRandomVerticalSpeed);
+			}else{
+				verticalSpeed = this.config.verticalSpeed;
+			}
+
+			//Determine radius
+			if(this.config.randomRadius){
+				radius = this.randomValueBetween(this.config.minimumRandomRadius,this.config.maxiumRandomRadius);
+			}else{
+				radius = this.config.radius;
+			}
+			
+			//In graphic mode, set graphic
+			if(this.config.graphicMode){
+				graphic = this.graphics[Math.floor(this.randomValueBetween(0,this.graphics.length-1))];
+			}
+
+			//Create particle object
+			particle =  {
+				x: this.randomValueBetween(this.config.horizontalOffsetLeft, this.element.width-this.config.horizontalOffsetRight),
+				y:  Math.random()*this.element.height,
+				verticalSpeed: verticalSpeed,
+				horizontalSpeed: horizontalSpeed,
+				radius: radius,
+				graphic: graphic
+			};
+			
+			//Return particle with any overrides supplied in config
+			return $.extend({}, particle, config);
+		},
+		randomValueBetween: function(min,max){
+			//Random value for two negative values
+			if(min<0 && max<0){
+				var absMin = Math.abs(max);
+				var absMax = Math.abs(min);
+				return Math.random()*(absMax-absMin+1) + min;
+			//Random value between a negative and a positive value
+			}else if(min<0){
+				return Math.random()*(max-min) + min;
+			//Random value for two positive values
+			}else{
+				return Math.random()*(max-min+1) + min;
 			}
 		},
 		//Function to draw all the elements on screen
@@ -81,27 +193,32 @@
 			this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
 			//Set the fill style
-			this.ctx.fillStyle = "rgba(255, 255, 255,1)";
+			this.ctx.fillStyle = "rgba(255, 255, 255, 1)";
 			
-			//Begin drawing
-			this.ctx.beginPath();
-
 			//Loop through the particles
 			for(var i = 0; i < this.config.amount; i++)
 			{	
 				//Get particle, move to coordinate and draw circle
 				var p = this.particles[i];
-				this.ctx.moveTo(p.x, p.y);
-				this.ctx.arc(p.x, p.y, p.r, 0, Math.PI*2, false);
+				
+				//Check graphic mode
+				if(this.config.graphicMode){
+					//Draw image at coordinates
+					this.ctx.drawImage(p.graphic,p.x,p.y);						
+				}else{
+					//Draw circle at coordinates
+					this.ctx.beginPath();
+					this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2, false);
+					this.ctx.fill();	
+				}
 			}
-
-			//Fill
-			this.ctx.fill();
-			
 		},
 
 		//Function to update position of the elements
 		updateElements: function(){
+			
+			//Time used in sin and cos functions
+			this.x+=0.01;
 
 			//Loop through the particles
 			for(var i = 0; i < this.config.amount; i++)
@@ -110,19 +227,20 @@
 				var p = this.particles[i];
 				
 				//Set y position
-				p.y += p.s;
+				p.x += p.horizontalSpeed;
+				p.y += p.verticalSpeed;
 				
 				//Check for out of screen
-				if(p.y > this.element.height)
-				{
+				if(p.y > this.element.height+p.radius*2){
 					//Put the particle on a random coordinate along the top of the screen
-					this.particles[i]= {x: Math.random()*this.element.width, y: -10, r: p.r, d: p.d, s:p.s};
+					this.particles[i]= this.createParticle({y:this.config.verticalOffsetTop});
 				}
 			}
 		},
 		//Bind resize
 		bindResize: function(){
 			var _self=this, TO = false;
+			
 			//Debounced resize handling
 			$(window).resize(function() {
 				if (TO !== false){
@@ -136,7 +254,6 @@
 
 		//Bind animation frame
 		bindRequestKeyframes: function(){
-			
 			//Check for requestAnimationFrame support, fall back to setTimeout (60fps)
 			window.requestAnimFrame = (function(){
 				return  window.requestAnimationFrame       ||
@@ -162,7 +279,7 @@
 				_self.updateElements();
 			})();
 		}
-	}
+	};
 
 	//Extend Jquery with the SnowFall function/object
 	$.fn.Snowfall = function(options) {
