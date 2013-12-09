@@ -26,7 +26,6 @@
 
 		//Configuration
 		defaults:{
-			
 			//Sizing
 			sizingMode: 'window',					//Either css (get pixel value from element css), parent (size canvas to parent size), explicit (use values below) or window (full screen canvas)
 			width: 800,								//In case of sizingMode explicit: use this width for the canvas
@@ -49,12 +48,18 @@
 			//Horizontal speed configuration
 			horizontalSpeed:0,						//Somewhere between -10 and 10 works best, negative values for left moving particles
 			randomHorizontalSpeed: true,			//True or false
-			minimumRandomHorizontalSpeed: -20,		//Minimum horizontal speed, can be negative for moving to the left.
-			maxiumumRandomHorizontalSpeed:20,		//Maxiumum horizontal speed, can be negative for moving to the left.
+			minimumRandomHorizontalSpeed: 2,		//Minimum horizontal speed, can be negative for moving to the left.
+			maxiumumRandomHorizontalSpeed:5,		//Maxiumum horizontal speed, can be negative for moving to the left.
 			horizontalMirroring: true,				//When set to true, particles which go out of screen horizontally will emerge at the other side
 
+			//Wind
+			wind:true,								//Set to true to enable a basic wind element to the particles
+			minimumWind:2,							//Minimum wind speed (can be negative)
+			maximumWind:10,							//Maximun wind speed (can be negative)
+			windPeriod:10,							//Period in which the wind comes full circle again and starts again
+
 			//Graphics
-			graphicMode: true,						//True or false, draws a circle when false
+			graphicMode: false,						//True or false, draws a circle when false
 			radius: 4,								//In case graphicMode false: radius for drawn circles
 			randomRadius: true,						//In case graphicMode false: toggle random radius for drawn circles
 			minimumRandomRadius:1,					//In case graphicMode false: minimum random radius
@@ -68,7 +73,7 @@
 		//Initialisation
 		init: function() {
 			//Get the options and merge with defaults
-			this.config = $.extend({}, this.defaults, this.options, this.metadata);
+			this.config = $.extend({}, this.defaults, this.options);
 
 			//Variables
 			this.x = 0;
@@ -95,27 +100,31 @@
 
 						//Check all images loaded
 						if(loadedImages==_self.config.graphics.length){
-							//Call necessary functions
-							_self.setCanvas();
-							_self.createElements();
-
-							//Bind events
-							_self.bindResize();
-							_self.bindRequestKeyframes();
+							//Call initialize function
+							_self.initialize();
 						}
 					};
 				});
 			}else{
-				//Call necessary functions
-				this.setCanvas();
-				this.createElements();
-
-				//Bind events
-				this.bindResize();
-				this.bindRequestKeyframes();
+				//Call initialize function
+				this.initialize();
 			}
 
 			return this;
+		},
+		initialize: function(){
+			//Check for wind
+			if(this.config.wind){
+				this.windConfig = this.calculateWind();
+			}
+
+			//Call necessary functions
+			this.setCanvas();
+			this.createElements();
+
+			//Bind events
+			this.bindResize();
+			this.bindRequestKeyframes();
 		},
 		//Set canvas dimensions according to the sizing mode supplied in the config
 		setCanvas: function(){
@@ -142,7 +151,6 @@
 			this.element.width=this.width;
 			this.element.height=this.height;
 		},
-
 		//Function to create the elements
 		createElements: function(){
 			this.particles = [];
@@ -152,7 +160,25 @@
 				this.particles.push(this.createParticle());
 			}
 		},
+		//Function to calculate the values we use in our cosin function when applying wind
+		calculateWind: function(){
+			//Variables used in cosin function: a * cosin( b * (x-c) ) + d
+			var a,b,c,d;
+			
+			//Calculations based on given variables
+			a = 0.5 * ( this.config.maximumWind - this.config.minimumWind);
+			b = (Math.PI*2)/this.config.windPeriod;
+			c = 0;
+			d = a + this.config.minimumWind;
 
+			//Write to variable we use in calculations
+			return {
+				a:a,
+				b:b,
+				c:c,
+				d:d
+			}
+		},
 		//Function to create a particle
 		createParticle: function(config){
 			var particle, verticalSpeed, horizontalSpeed, radius,graphic;
@@ -190,7 +216,7 @@
 			//Create particle object
 			particle =  {
 				x: this.randomValueBetween(this.config.horizontalOffsetLeft, this.element.width-this.config.horizontalOffsetRight),
-				y:  Math.random()*this.element.height,
+				y: this.randomValueBetween(0,this.element.height),
 				verticalSpeed: verticalSpeed,
 				horizontalSpeed: horizontalSpeed,
 				radius: radius,
@@ -241,12 +267,10 @@
 				}
 			}
 		},
-
 		//Function to update position of the elements
 		updateElements: function(){
-			
 			//Time used in sin and cos functions
-			this.x+=0.01;
+			this.x+= (1/60);
 
 			//Loop through the particles
 			for(var i = 0; i < this.config.amount; i++)
@@ -254,8 +278,14 @@
 				//Get the particle
 				var p = this.particles[i];
 				
+				//Set x position
+				if(this.config.wind){
+					p.x += p.horizontalSpeed+ (this.windConfig.a * Math.cos(this.windConfig.b*(this.x+this.windConfig.c))+this.windConfig.d);
+				}else{
+					p.x += p.horizontalSpeed;
+				}
+
 				//Set y position
-				p.x += p.horizontalSpeed;
 				p.y += p.verticalSpeed;
 				
 				//Check for out of screen
@@ -267,10 +297,12 @@
 				//Check for horizontal mirroring
 				if(this.config.horizontalMirroring){
 					//Check for out of screen right side
-					if(p.horizontalSpeed > 0 && p.x > this.element.width+ (p.radius*2)){
+					if(p.x > this.element.width + (p.radius*2)){
 						p.x = 0 - p.radius*2;
+					}
+
 					//Check for out of screen left side
-					}else if(p.horizontalSpeed < 0 && p.x + (p.radius*2) < 0){
+					if(p.x + (p.radius*2) < 0){
 						p.x = this.element.width;
 					}
 				}
@@ -290,7 +322,6 @@
 				}, 300);
 			});
 		},
-
 		//Bind animation frame
 		bindRequestKeyframes: function(){
 			//Check for requestAnimationFrame support, fall back to setTimeout (60fps)
