@@ -26,8 +26,13 @@
 
 		//Configuration
 		defaults:{
+			//Sizing
+			sizingMode: 'window',					//Either css (get pixel value from element css), parent (size canvas to parent size), explicit (use values below) or window (full screen canvas)
+			width: 800,								//In case of sizingMode explicit: use this width for the canvas
+			height: 600,							//In case of sizingMode explicit: use this height for the canvas	
+
 			//Amount of particles
-			amount: 100,
+			amount: 500,							//Amount of particles that will be created
 
 			//Positioning
 			horizontalOffsetLeft:-100,				//Horizontal offset from the left (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
@@ -37,17 +42,17 @@
 			//Vertical speed configuration
 			verticalSpeed: 23,						//Somewhere between 0.5 and 10 works best
 			randomVerticalSpeed: true,				//True or false
-			minimumRandomVerticalSpeed: 3,			//Minimum shouldn't be lower than zero and probably heigher than 0.5
+			minimumRandomVerticalSpeed: 4,			//Minimum shouldn't be lower than zero and probably heigher than 0.5
 			maxiumumRandomVerticalSpeed: 6,			//Maxiumum shouln't be lower than zero and probably lower than 10
 
 			//Horizontal speed configuration
 			horizontalSpeed:10,						//Somewhere between -10 and 10 works best, negative values for left moving particles
 			randomHorizontalSpeed: true,			//True or false
-			minimumRandomHorizontalSpeed: -4,		//Minimum shouldn't be lower than zero and probably heigher than 0.5
-			maxiumumRandomHorizontalSpeed: 4,		//Maxiumum shouln't be lower than zero and probably lower than 10
+			minimumRandomHorizontalSpeed: -3,		//Minimum horizontal speed, can be negative for moving to the left.
+			maxiumumRandomHorizontalSpeed: 3,		//Maxiumum horizontal speed, can be negative for moving to the left.
 
 			//Graphics
-			graphicMode: true,						//True or false, draws a circle when false
+			graphicMode: false,						//True or false, draws a circle when false
 			radius: 4,								//In case graphicMode false: radius for drawn circles
 			randomRadius: true,						//In case graphicMode false: toggle random radius for drawn circles
 			minimumRandomRadius:10,					//In case graphicMode false: minimum random radius
@@ -110,14 +115,30 @@
 
 			return this;
 		},
+		//Set canvas dimensions according to the sizing mode supplied in the config
 		setCanvas: function(){
-			//Get window dimensions
-			this.windowWidth = window.innerWidth;
-			this.windowHeight = window.innerHeight;
+			//Determine sizing mode
+			if(this.config.sizingMode.toLowerCase() === 'css'){
+				//Get values from css 
+				this.width = parseInt($(this.element).css('width'),10);
+				this.height = parseInt($(this.element).css('height'),10);
+			}else if(this.config.sizingMode.toLowerCase() === 'parent'){
+				//Get dimensions of the parent
+				this.width = $(this.element).parent().width();
+				this.height = $(this.element).parent().height();
+			}else if(this.config.sizingMode.toLowerCase() === 'window'){
+				//Get window dimension
+				this.width = window.innerWidth;
+				this.height = window.innerHeight;
+			}else if(this.config.sizingMode.toLowerCase() === 'explicit'){
+				//Get window dimension
+				this.width = this.config.width;
+				this.height = this.config.height;
+			}
 
 			//Explicitly set canvas width and height
-			this.element.width=this.windowWidth;
-			this.element.height=this.windowHeight;
+			this.element.width=this.width;
+			this.element.height=this.height;
 		},
 
 		//Function to create the elements
@@ -173,6 +194,7 @@
 			//Return particle with any overrides supplied in config
 			return $.extend({}, particle, config);
 		},
+		//Function to get a random value between the supplied values (can be negative values)
 		randomValueBetween: function(min,max){
 			//Random value for two negative values
 			if(min<0 && max<0){
@@ -190,8 +212,8 @@
 		//Function to draw all the elements on screen
 		drawElements: function(){
 			//Clear the context
-			this.ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-
+			this.ctx.clearRect(0, 0, this.element.width, this.element.height);
+			
 			//Set the fill style
 			this.ctx.fillStyle = "rgba(255, 255, 255, 1)";
 			
@@ -204,12 +226,12 @@
 				//Check graphic mode
 				if(this.config.graphicMode){
 					//Draw image at coordinates
-					this.ctx.drawImage(p.graphic,p.x,p.y);						
+					this.ctx.drawImage(p.graphic,Math.round(p.x),Math.round(p.y));						
 				}else{
 					//Draw circle at coordinates
 					this.ctx.beginPath();
-					this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2, false);
-					this.ctx.fill();	
+					this.ctx.arc(Math.round(p.x), Math.round(p.y), Math.round(p.radius), 0, Math.PI*2, false);
+					this.ctx.fill();
 				}
 			}
 		},
