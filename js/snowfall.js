@@ -26,37 +26,39 @@
 
 		//Configuration
 		defaults:{
+			
 			//Sizing
 			sizingMode: 'window',					//Either css (get pixel value from element css), parent (size canvas to parent size), explicit (use values below) or window (full screen canvas)
 			width: 800,								//In case of sizingMode explicit: use this width for the canvas
 			height: 600,							//In case of sizingMode explicit: use this height for the canvas	
 
 			//Amount of particles
-			amount: 500,							//Amount of particles that will be created
+			amount: 50,								//Amount of particles that will be created
 
 			//Positioning
-			horizontalOffsetLeft:-100,				//Horizontal offset from the left (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
-			horizontalOffsetRight:-200,				//Horizontal offset from the right (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
-			verticalOffsetTop:-100,					//Vertical offset from the top (can be positive or negative) in px, useful for the start position of the snow above the canvas
+			horizontalOffsetLeft:0,					//Horizontal offset from the left (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
+			horizontalOffsetRight:0,				//Horizontal offset from the right (can be positive or negative) in px, to shift starting point, useful when having diagonal snow
+			verticalOffsetTop:0,					//Vertical offset from the top (can be positive or negative) in px, useful for the start position of the snow above the canvas
 
 			//Vertical speed configuration
 			verticalSpeed: 23,						//Somewhere between 0.5 and 10 works best
 			randomVerticalSpeed: true,				//True or false
-			minimumRandomVerticalSpeed: 4,			//Minimum shouldn't be lower than zero and probably heigher than 0.5
-			maxiumumRandomVerticalSpeed: 6,			//Maxiumum shouln't be lower than zero and probably lower than 10
+			minimumRandomVerticalSpeed: 3,			//Minimum shouldn't be lower than zero and probably heigher than 0.5
+			maxiumumRandomVerticalSpeed: 5,			//Maxiumum shouln't be lower than zero and probably lower than 10
 
 			//Horizontal speed configuration
-			horizontalSpeed:10,						//Somewhere between -10 and 10 works best, negative values for left moving particles
+			horizontalSpeed:0,						//Somewhere between -10 and 10 works best, negative values for left moving particles
 			randomHorizontalSpeed: true,			//True or false
-			minimumRandomHorizontalSpeed: -3,		//Minimum horizontal speed, can be negative for moving to the left.
-			maxiumumRandomHorizontalSpeed: 3,		//Maxiumum horizontal speed, can be negative for moving to the left.
+			minimumRandomHorizontalSpeed: -20,		//Minimum horizontal speed, can be negative for moving to the left.
+			maxiumumRandomHorizontalSpeed:20,		//Maxiumum horizontal speed, can be negative for moving to the left.
+			horizontalMirroring: true,				//When set to true, particles which go out of screen horizontally will emerge at the other side
 
 			//Graphics
-			graphicMode: false,						//True or false, draws a circle when false
+			graphicMode: true,						//True or false, draws a circle when false
 			radius: 4,								//In case graphicMode false: radius for drawn circles
 			randomRadius: true,						//In case graphicMode false: toggle random radius for drawn circles
-			minimumRandomRadius:10,					//In case graphicMode false: minimum random radius
-			maxiumRandomRadius:20,					//In case graphicMode false: maximum random radius
+			minimumRandomRadius:1,					//In case graphicMode false: minimum random radius
+			maxiumRandomRadius:2,					//In case graphicMode false: maximum random radius
 			graphics: [
 				'images/flake2.png',
 				'images/flake.png'
@@ -168,17 +170,21 @@
 			}else{
 				verticalSpeed = this.config.verticalSpeed;
 			}
-
-			//Determine radius
-			if(this.config.randomRadius){
-				radius = this.randomValueBetween(this.config.minimumRandomRadius,this.config.maxiumRandomRadius);
-			}else{
-				radius = this.config.radius;
-			}
 			
 			//In graphic mode, set graphic
 			if(this.config.graphicMode){
 				graphic = this.graphics[Math.floor(this.randomValueBetween(0,this.graphics.length-1))];
+			}
+
+			//Determine radius
+			if(this.config.graphicMode){
+				radius = graphic.width / 2;
+			}else{
+				if(this.config.randomRadius){
+					radius = this.randomValueBetween(this.config.minimumRandomRadius,this.config.maxiumRandomRadius);
+				}else{
+					radius = this.config.radius;
+				}
 			}
 
 			//Create particle object
@@ -255,7 +261,18 @@
 				//Check for out of screen
 				if(p.y > this.element.height+p.radius*2){
 					//Put the particle on a random coordinate along the top of the screen
-					this.particles[i]= this.createParticle({y:this.config.verticalOffsetTop});
+					this.particles[i]= this.createParticle({y: 0 - p.radius*2 + this.config.verticalOffsetTop});
+				}
+
+				//Check for horizontal mirroring
+				if(this.config.horizontalMirroring){
+					//Check for out of screen right side
+					if(p.horizontalSpeed > 0 && p.x > this.element.width+ (p.radius*2)){
+						p.x = 0 - p.radius*2;
+					//Check for out of screen left side
+					}else if(p.horizontalSpeed < 0 && p.x + (p.radius*2) < 0){
+						p.x = this.element.width;
+					}
 				}
 			}
 		},
